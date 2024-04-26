@@ -88,6 +88,12 @@ public class ClientConnection extends Thread {
                             out.println(roomNumber + "번 채팅방에서 나왔습니다.\n");
                             roomNumber = -1;
                         }
+                    } else if (menu.equals("/bye")) {
+                        System.out.println(name + " 닉네임의 사용자가 연결을 끊었습니다. ");
+                        if (roomNumber != -1) {
+                            clientData.get(roomNumber).remove(name);
+                        }
+                        break;
                     }
                 } else {
                     if (roomNumber == -1) {
@@ -97,7 +103,6 @@ public class ClientConnection extends Thread {
                     }
                 }
             }
-
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
@@ -107,6 +112,14 @@ public class ClientConnection extends Thread {
                 try {
                     in.close();
                 } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            if (out != null) {
+                try {
+                    out.close();
+                } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
             }
