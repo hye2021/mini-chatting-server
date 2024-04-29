@@ -15,7 +15,6 @@ public class ClientConnection extends Thread {
     private List<Map<String, PrintWriter>> clientData; // 채팅방 클라이언트 목록 (0-전체, 1-방1, 2-방2, ...)
     int roomNumber = -1; // 현재 클라이언트가 속한 채팅방 번호
 
-
     // Constructor
     public ClientConnection(Socket socket, List<Map<String, PrintWriter>> clientData) {
         this.socket = socket;
@@ -39,7 +38,7 @@ public class ClientConnection extends Thread {
     @Override
     public void run() {
         System.out.println(name + " 닉네임의 사용자가 연결했습니다. (" + socket.getInetAddress() + ")");
-        out.println("\n명령어를 입력하여 원하는 메뉴를 선택할 수 있습니다." +
+        out.println("\n명령어를 입력하여 원하는 메뉴를 선택할 수 있습니다.\n" +
                 "방 목록 보기 : /list\n" +
                 "방 생성 : /create\n" +
                 "방 입장 : /join [방번호]\n" +
@@ -57,9 +56,14 @@ public class ClientConnection extends Thread {
                             out.println("현재 채팅방이 없습니다.\n");
                             continue;
                         }
-                        out.println("현재 채팅방 목록입니다.");
-                        for (int i = 1; i < clientData.size(); i++) {
-                            out.println("방 번호 : " + i + ", 인원 : " + clientData.get(i).size());
+                        var list = clientData.stream().skip(1).filter(m -> !m.isEmpty()).toList();
+                        if (list.isEmpty())
+                            out.println("현재 채팅방이 없습니다.\n");
+                        else {
+                            out.println("현재 채팅방 목록입니다.");
+                            list.forEach(m -> {
+                                out.println("방 번호 : " + clientData.indexOf(m) + ", 인원 : " + m.size());
+                            });
                         }
                         out.println();
                     } // 방 생성하기
@@ -74,6 +78,10 @@ public class ClientConnection extends Thread {
                     else if (menu.equals("/join")) {
                         try {
                             roomNumber = Integer.parseInt(msg.trim().split(" ")[1]);
+                            if(clientData.get(roomNumber).isEmpty()) {
+                                out.println(roomNumber + "번 채팅방이 없습니다.\n");
+                                roomNumber = -1;
+                            }
                             clientData.get(roomNumber).put(name, out);
                             multicast(name + "님이 " + roomNumber + "번 채팅방에 입장했습니다.\n", roomNumber);
                         } catch (Exception e) {
@@ -82,18 +90,27 @@ public class ClientConnection extends Thread {
                     } // 방 나가기
                     else if (menu.equals("/exit")) {
                         if (roomNumber == -1) {
-                            out.println("아직 채팅방에 입장하지 않았습니다.\n");
+                            out.println("아직 채팅방에 입장하지 않았습니다.");
                         } else {
                             clientData.get(roomNumber).remove(name);
-                            out.println(roomNumber + "번 채팅방에서 나왔습니다.\n");
+                            out.println(roomNumber + "번 채팅방에서 나왔습니다.");
+                            if(clientData.get(roomNumber).isEmpty())
+                                out.println(roomNumber + "번 채팅방이 삭제되었습니다.");
+                            else
+                                multicast(name + "님이 채팅방을 나갔습니다." , roomNumber);
                             roomNumber = -1;
                         }
-                    } else if (menu.equals("/bye")) {
+                        out.println();
+                    } // 프로그램 종료하기
+                    else if (menu.equals("/bye")) {
                         System.out.println(name + " 닉네임의 사용자가 연결을 끊었습니다. ");
                         if (roomNumber != -1) {
                             clientData.get(roomNumber).remove(name);
                         }
                         break;
+                    }
+                    else {
+                        out.println("잘못된 명령어입니다.\n");
                     }
                 } else {
                     if (roomNumber == -1) {
