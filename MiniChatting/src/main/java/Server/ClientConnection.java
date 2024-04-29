@@ -2,10 +2,12 @@ package Server;
 
 import java.net.*;
 import java.io.*;
+import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Date;
 
 public class ClientConnection extends Thread {
     private Socket socket;
@@ -13,7 +15,9 @@ public class ClientConnection extends Thread {
     private BufferedReader in; // 입력 스트림
     private PrintWriter out; // 출력 스트림
     private List<Map<String, PrintWriter>> clientData; // 채팅방 클라이언트 목록 (0-전체, 1-방1, 2-방2, ...)
-    int roomNumber = -1; // 현재 클라이언트가 속한 채팅방 번호
+    private int roomNumber = -1; // 현재 클라이언트가 속한 채팅방 번호
+    private SimpleDateFormat time = new SimpleDateFormat("[HH:mm:ss] ");
+    private FileWriter writer;
 
     // Constructor
     public ClientConnection(Socket socket, List<Map<String, PrintWriter>> clientData) {
@@ -45,7 +49,7 @@ public class ClientConnection extends Thread {
                 "방 나가기 : /exit\n" +
                 "전체 사용자 목록 : /users\n" +
                 "현재 채팅방의 사용자 목록 : /roomusers\n" +
-                "프로그램 종료 : /bye\n" );
+                "프로그램 종료 : /bye\n");
 
         String msg = null;
         try {
@@ -75,17 +79,18 @@ public class ClientConnection extends Thread {
                         clientData.get(roomNumber).put(name, out);
                         out.println(roomNumber + "번 채팅방이 생성되었습니다.");
                         out.println(roomNumber + "번 채팅방에 입장했습니다.\n");
-
+                        startWriteSave();
                     } // 방 입장하기
                     else if (menu.equals("/join")) {
                         try {
                             roomNumber = Integer.parseInt(msg.trim().split(" ")[1]);
-                            if(clientData.get(roomNumber).isEmpty()) {
+                            if (clientData.get(roomNumber).isEmpty()) {
                                 out.println(roomNumber + "번 채팅방이 없습니다.\n");
                                 roomNumber = -1;
                             }
                             clientData.get(roomNumber).put(name, out);
                             multicast(name + "님이 " + roomNumber + "번 채팅방에 입장했습니다.\n", roomNumber);
+                            startWriteSave();
                         } catch (Exception e) {
                             out.println("잘못된 방 번호입니다.\n");
                         }
@@ -96,10 +101,12 @@ public class ClientConnection extends Thread {
                         } else {
                             clientData.get(roomNumber).remove(name);
                             out.println(roomNumber + "번 채팅방에서 나왔습니다.");
-                            if(clientData.get(roomNumber).isEmpty())
+                            stopWriteSave();
+                            if (clientData.get(roomNumber).isEmpty()) {
                                 out.println(roomNumber + "번 채팅방이 삭제되었습니다.");
+                            }
                             else
-                                multicast(name + "님이 채팅방을 나갔습니다." , roomNumber);
+                                multicast(name + "님이 채팅방을 나갔습니다.", roomNumber);
                             roomNumber = -1;
                         }
                         out.println();
@@ -110,7 +117,7 @@ public class ClientConnection extends Thread {
                         out.println();
                     } // 현재 채팅방의 사용자 목록
                     else if (menu.equals("/roomusers")) {
-                        if(roomNumber == -1)
+                        if (roomNumber == -1)
                             out.println("채팅방에 입장하지 않았습니다.");
                         else
                             clientData.get(roomNumber).keySet().forEach(out::println);
@@ -123,8 +130,7 @@ public class ClientConnection extends Thread {
                             clientData.get(roomNumber).remove(name);
                         }
                         break;
-                    }
-                    else {
+                    } else {
                         out.println("잘못된 명령어입니다.\n");
                     }
                 } else {
@@ -132,6 +138,7 @@ public class ClientConnection extends Thread {
                         out.println("채팅방에 입장해야 채팅을 할 수 있습니다.\n");
                     } else {
                         multicast("[" + name + "] " + msg, roomNumber);
+                        writeSave("[" + name + "] " + msg);
                     }
                 }
             }
@@ -170,6 +177,44 @@ public class ClientConnection extends Thread {
         var clients = clientData.get(room);
         for (PrintWriter out : clients.values()) {
             out.println(msg);
+        }
+    }
+
+    private void startWriteSave() {
+        SimpleDateFormat date = new SimpleDateFormat("yyyy-MM-dd");
+
+        String dirPath = "MiniChatSave";
+        String fileName = date.format(new Date()) + "(room" + roomNumber + ").txt";
+
+        File dir = new File(dirPath);
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+
+        File file = new File(dir, fileName);
+        try {
+            this.writer = new FileWriter(file, true);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private synchronized void writeSave(String str) {
+        if(writer == null) return;
+        try {
+            writer.write(time.format(new Date()) + str + "\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void stopWriteSave() {
+        if (writer != null) {
+            try {
+                writer.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
