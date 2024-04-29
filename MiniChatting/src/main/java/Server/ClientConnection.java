@@ -43,7 +43,9 @@ public class ClientConnection extends Thread {
                 "방 생성 : /create\n" +
                 "방 입장 : /join [방번호]\n" +
                 "방 나가기 : /exit\n" +
-                "접속 종료 : /bye\n");
+                "전체 사용자 목록 : /users\n" +
+                "현재 채팅방의 사용자 목록 : /roomusers\n" +
+                "프로그램 종료 : /bye\n" );
 
         String msg = null;
         try {
@@ -101,7 +103,20 @@ public class ClientConnection extends Thread {
                             roomNumber = -1;
                         }
                         out.println();
-                    } // 프로그램 종료하기
+                    } // 전체 사용자 목록
+                    else if (menu.equals("/users")) {
+                        out.println("현재 접속 중인 전체 사용자 목록입니다.");
+                        clientData.getFirst().keySet().forEach(out::println);
+                        out.println();
+                    } // 현재 채팅방의 사용자 목록
+                    else if (menu.equals("/roomusers")) {
+                        if(roomNumber == -1)
+                            out.println("채팅방에 입장하지 않았습니다.");
+                        else
+                            clientData.get(roomNumber).keySet().forEach(out::println);
+                        out.println();
+                    }
+                    // 프로그램 종료하기
                     else if (menu.equals("/bye")) {
                         System.out.println(name + " 닉네임의 사용자가 연결을 끊었습니다. ");
                         if (roomNumber != -1) {
